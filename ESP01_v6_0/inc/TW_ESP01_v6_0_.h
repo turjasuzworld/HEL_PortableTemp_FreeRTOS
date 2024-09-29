@@ -19,6 +19,7 @@
 #define     __DFLT_PSWD_LEN_MAX__       30
 #define     __DFLT_IPv4_LEN_MAX__       16
 #define     _ESP01_DATABUFF_MAX_        2048
+#define     _MAX_SSID_SCAN_SUPPORTED_   15
 
 #define     __ENTIRE_LENGTH_OF(x)       sizeof(x)
 
@@ -77,6 +78,7 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_SERVR_CONNECT_SUCCESS,
         _E8266_SERVR_CONNECT_TIMEOUT,
         _E8266_SERVR_DISCONNCT,
+        _E8266_CWJAP_CONNECTING,
         _E8266_CWJAP_UNKNWN_FAIL,
         _E8266_CWJAP_CON_TIMOUT_1,
         _E8266_CWJAP_WRNG_PSWRD_2,
@@ -128,6 +130,13 @@ struct      _wifiParams{
             char _wifiRssi[3];
 };
 
+struct      _availableSSIDs {
+            char    _securityType[1];
+            char    _ssidName[__DFLT_SSID_LEN_MAX__];
+            char    _ssidRSSI[4];
+            char    _ssidMACID[17];
+};
+
 /*
  * Variables
  */
@@ -147,5 +156,17 @@ extern                      esp8266StateMachines checkPresenceEsp01Module(void (
 
 extern                      esp8266StateMachines listApAndConnectToSelectedSSID(void (*wrFptr)(const void *, size_t ),
                                                                                 void (*rdFptr)(void *, size_t , size_t* ),
-                                                                                uint_fast8_t* replyDone);
+                                                                                struct _availableSSIDs* ptrToListedSsids[_MAX_SSID_SCAN_SUPPORTED_]);
+
+extern                      esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
+                                                                      void (*rdFptr)(void *, size_t , size_t* ),
+                                                                      char* ssidName, char* ssidPassword, char* ssidMAC);
+
+
+
+
+
+
+
+
 #endif /* TW_ESP01__H_ */

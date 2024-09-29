@@ -57,6 +57,7 @@
     UART2_Handle uart;
     UART2_Params uartParams;
     bool replyDone = false;
+    struct _availableSSIDs* scannedSSID_details[_MAX_SSID_SCAN_SUPPORTED_];
 
 void    readCbKFn(UART2_Handle handle, void *buf, size_t count,
                   void *userArg, int_fast16_t status) {
@@ -189,10 +190,17 @@ void *testThread(void *arg0)
             case _E8266_MODULE_PRESENT:
                 basicState = listApAndConnectToSelectedSSID(&writeToEspUart,
                                                             &readFromEspUart,
-                                                            &replyDone);
+                                                            &scannedSSID_details);
+
                 break;
             case _E8266_MODULE_NOREPLY:
 
+                break;
+            case _E8266_SSID_LISTED:
+                basicState = connectToSelected_AP(&writeToEspUart,
+                                                  &readFromEspUart,
+                                                  "TurjasuBLR_2.4G",
+                                                  "Stk#41912", NULL);
                 break;
             default:
                 break;
