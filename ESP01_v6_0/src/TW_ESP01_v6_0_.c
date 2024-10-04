@@ -174,12 +174,29 @@ esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
                                           void (*rdFptr)(void *, size_t , size_t* ),
                                           char* ssidName, char* ssidPassword, char* ssidMAC) {
     esp8266StateMachines _pOnState = _E8266_CWJAP_CONNECTING;
-    char* _cwjapStr = "AT+CWJAP=\"";
-    _cwjapStr = strcat(_cwjapStr, strcat(ssidName, "\""));
+    int timeout = 3;
+    char*   mdmRply = NULL;
+    char*   buffPtr = NULL;
+    char _atCmdStr[100] = "AT+CWJAP=\"";
+    char* _p_atCmdStr = _atCmdStr;
+    _p_atCmdStr = strcat(_p_atCmdStr, (const char*)ssidName);
+    _p_atCmdStr = strcat(_p_atCmdStr, "\",\"");
+    _p_atCmdStr = strcat(_p_atCmdStr, (const char*)ssidPassword);
+    _p_atCmdStr = strcat(_p_atCmdStr, "\"\r\n");
     do {
         rdFptr(&_espDataBuff,2048,NULL);
-        wrFptr(_cwjapStr,__ENTIRE_LENGTH_OF(*_cwjapStr));
-    } while (0);
+        wrFptr(_p_atCmdStr,strlen((const char*)_p_atCmdStr));
+        sleep(5);
+        buffPtr = &_espDataBuff[0];
+        mdmRply = strstr(buffPtr, "\r\nOK\r\n");
+        if(mdmRply) {
+            _pOnState =  _E8266_SERVR_CONNECT_SUCCESS;
+            // Optional populate the IP address received //
+        } else {
+            // set the correct failure cause
+        }
+        rdFptr(NULL,0,NULL);
+    } while ((_pOnState !=  _E8266_SERVR_CONNECT_SUCCESS)&&(timeout>0));
 
     return  _pOnState;
 }
