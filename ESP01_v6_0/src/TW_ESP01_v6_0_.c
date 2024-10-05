@@ -14,6 +14,7 @@
 char   _espDataBuff[_ESP01_DATABUFF_MAX_] = {0};
 uint16_t        _dataReadFromEsp01;
 struct  _availableSSIDs     _scannedSsidList[_MAX_SSID_SCAN_SUPPORTED_] = {{._securityType = '1', ._ssidName = "TEST", ._ssidMACID = "ab:cd:ef:12:34:56"}};
+struct  _wifiParams     wifiParamsRetrieved;
 /*!
  *  @brief      Get the presence of ESP01 module to report to system. Does
  *              not initialize the module, but simple checks for the AT OK
@@ -168,6 +169,79 @@ esp8266StateMachines listApAndConnectToSelectedSSID(void (*wrFptr)(const void *,
 }
 
 /*
+ * This api will read the IP address and ping timings and other details
+ */
+esp8266StateMachines retrieveConnectionDetails(struct _wifiParams *wifiparams_t,
+                                               void (*wrFptr)(const void *, size_t ),
+                                               void (*rdFptr)(void *, size_t , size_t* ),
+                                               esp8266StateMachines _pOnStateEntry) {
+    esp8266StateMachines _pOnState;
+    uint_fast8_t timeout1, timeout2, idx;
+    char*   mdmRply = NULL;
+    char*   buffPtr = NULL;
+    if(_pOnStateEntry != _E8266_SERVR_CONNECT_SUCCESS) {
+        return _E8266_CIFSR_PRECONDITION_FAIL;
+    }
+    rdFptr(NULL,0,NULL);
+    memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
+    rdFptr(&_espDataBuff,2048,NULL);
+    wrFptr("AT+CIFSR\r\n",__ENTIRE_LENGTH_OF("AT+CIFSR\r\n"));
+    timeout1 = 5;
+    do {
+        sleep(3);
+        buffPtr = &_espDataBuff[0];
+        mdmRply = strstr(buffPtr, "+CIFSR:APIP,\"");
+        if(mdmRply) {
+            mdmRply += strlen("+CIFSR:APIP,\"");
+            idx=0;
+            while(((*mdmRply) != '"')&&(idx<__DFLT_IPv4_LEN_MAX__)) {
+                wifiparams_t->_APIP[idx] = *mdmRply;
+                mdmRply++;
+                idx++;
+            }
+        }
+
+        mdmRply = strstr(buffPtr, ":APMAC,\"");
+        if(mdmRply) {
+            mdmRply += strlen(":APMAC,\"");
+            idx=0;
+            while(((*mdmRply) != '"')&&(idx<__DFLT_MAC_LEN_MAX__)) {
+                wifiparams_t->_APMAC[idx] = *mdmRply;
+                mdmRply++;
+                idx++;
+            }
+        }
+
+        mdmRply = strstr(buffPtr, ":STAIP,\"");
+        if(mdmRply) {
+            mdmRply += strlen(":STAIP,\"");
+            idx=0;
+            while(((*mdmRply) != '"')&&(idx<__DFLT_IPv4_LEN_MAX__)) {
+                wifiparams_t->_STAIP[idx] = *mdmRply;
+                mdmRply++;
+                idx++;
+            }
+        }
+
+        mdmRply = strstr(buffPtr, ":STAMAC,\"");
+        if(mdmRply) {
+            mdmRply += strlen(":STAMAC,\"");
+            idx=0;
+            while(((*mdmRply) != '"')&&(idx<__DFLT_MAC_LEN_MAX__)) {
+                wifiparams_t->_STAMAC[idx] = *mdmRply;
+                mdmRply++;
+                idx++;
+            }
+            _pOnState =  _E8266_CIFSR_COMPLETE;
+        }
+        timeout1 = 0;
+    } while (timeout1 > 0);
+
+    return _pOnState;
+}
+
+
+/*
  *
  */
 esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
@@ -184,16 +258,32 @@ esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
     _p_atCmdStr = strcat(_p_atCmdStr, (const char*)ssidPassword);
     _p_atCmdStr = strcat(_p_atCmdStr, "\"\r\n");
     do {
+        memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
         rdFptr(&_espDataBuff,2048,NULL);
         wrFptr(_p_atCmdStr,strlen((const char*)_p_atCmdStr));
-        sleep(5);
+        sleep(10);
         buffPtr = &_espDataBuff[0];
-        mdmRply = strstr(buffPtr, "\r\nOK\r\n");
+        mdmRply = strstr(buffPtr, "busy");
         if(mdmRply) {
+            // Modem busy, wait do nothing
+            sleep(5);
+            timeout--;
+        }
+        else if(NULL != strstr(buffPtr, "\r\nOK\r\n")) {
             _pOnState =  _E8266_SERVR_CONNECT_SUCCESS;
-            // Optional populate the IP address received //
+            // Optional populate the IP address received AT+CIFSR\r\n//
+#ifdef      _WIFI_CONN_DETAILS_NEEDED_
+            _pOnState = retrieveConnectionDetails(&wifiParamsRetrieved, wrFptr, rdFptr, _pOnState);
+            if(_pOnState == _E8266_CIFSR_COMPLETE) timeout = 0;
+#else
+            timeout = 0;
+#endif
+
         } else {
             // set the correct failure cause
+
+            //decrement timeout
+            timeout--;
         }
         rdFptr(NULL,0,NULL);
     } while ((_pOnState !=  _E8266_SERVR_CONNECT_SUCCESS)&&(timeout>0));

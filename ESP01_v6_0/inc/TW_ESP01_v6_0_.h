@@ -18,8 +18,10 @@
 #define     __DFLT_SSID_LEN_MAX__       30
 #define     __DFLT_PSWD_LEN_MAX__       30
 #define     __DFLT_IPv4_LEN_MAX__       16
+#define     __DFLT_MAC_LEN_MAX__        17
 #define     _ESP01_DATABUFF_MAX_        2048
 #define     _MAX_SSID_SCAN_SUPPORTED_   15
+#define     _WIFI_CONN_DETAILS_NEEDED_      // disable this if you dont want to populate acquired STATION ip & mac as well as AP ip & mac.
 
 #define     __ENTIRE_LENGTH_OF(x)       sizeof(x)
 
@@ -84,7 +86,9 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_CWJAP_WRNG_PSWRD_2,
         _E8266_CWJAP_AP_NT_FND_3,
         _E8266_CWJAP_CON_GENERAL_FAIL_4,
+        _E8266_CIFSR_PRECONDITION_FAIL,
         _E8266_CIFSR_FAIL,
+        _E8266_CIFSR_COMPLETE,
         _E8266_PING_SUCCESS,                //39        // THIS ALSO ENSURES INTERNET IS PRESENT = PINGING WWW.GOOGLE.COM
         _E8266_PING_FAIL,                               // THIS ALSO ENSURES THAT INTERNET IS NOT PRESENT
         _E8266_PING_TIMEOUT,
@@ -125,7 +129,10 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
 struct      _wifiParams{
             char _wifiSSID[__DFLT_SSID_LEN_MAX__];
             char _wifiPSWD[__DFLT_PSWD_LEN_MAX__];
-            char _wifiIPAddr[__DFLT_IPv4_LEN_MAX__];
+            char _APIP[__DFLT_IPv4_LEN_MAX__];
+            char _APMAC[__DFLT_MAC_LEN_MAX__];
+            char _STAIP[__DFLT_IPv4_LEN_MAX__];
+            char _STAMAC[__DFLT_MAC_LEN_MAX__];
             char _wifiInetPingMs[4];
             char _wifiRssi[3];
 };
@@ -143,6 +150,8 @@ struct      _availableSSIDs {
 extern      char   _espDataBuff[_ESP01_DATABUFF_MAX_];
 extern      uint16_t        _dataReadFromEsp01;
 extern      bool replyDone;
+extern      struct      _availableSSIDs     _scannedSsidList[_MAX_SSID_SCAN_SUPPORTED_];
+extern      struct      _wifiParams         wifiParamsRetrieved;
 /*
  *  Functions
  */

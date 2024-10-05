@@ -201,10 +201,10 @@ void *testThread(void *arg0)
                                                   &readFromEspUart,
                                                   "TurjasuBLR_2.4G",
                                                   "Stk#41912", NULL);
+                struct  _wifiParams* ptrToConnectionDetails = &wifiParamsRetrieved;
                 break;
             default:
                 break;
         }
-
     }
 }
