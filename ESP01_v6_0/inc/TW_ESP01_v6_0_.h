@@ -38,6 +38,15 @@ typedef     enum    {
         _Esp_CreateandConnect_TCP_Client,
 }espOperCommand;
 
+typedef     enum    {
+        _Esp_TCP,
+        _Esp_TCPv6,
+        _Esp_UDP,
+        _Esp_UDPv6,
+        _Esp_TCP_SSL,
+
+}clientConnectionTypes;
+
 
 typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CHK NTWRK REG -> CHECK NTWRK PWR -> CHK MODULE SUPPLY VOLTAGE
                           //*   --> CHK GPRS -->EXIT
@@ -104,9 +113,11 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_CIPCLOSE_UDP_SUCCESS,
         _E8266_CIPCLOSE_UDP_FAIL,
         _E8266_CIPSTART_ERROR,
+        _E8266_CIPSTART_CLOSE_ERROR,
+        _E8266_CIPSTART_CONNTYPE_ERROR,
         _E8266_CIPSTART_DNS_ERROR,
         _E8266_CIPSTART_TIMEOUT,
-        _E8266_CIPSTART_SRVR_PTR_NULL,
+        _E8266_CIPSTART_SRVR_PTR_OR_PORT_VAL_NULL,
         _E8266_CIPSTART_ALREADY_CONNCTD,
         _E8266_CIPSEND_ARROW_SUCCESS,
         _E8266_CIPSEND_ARROW_FAIL,  // ALSO INCLUDES TIMEOUT
@@ -173,9 +184,15 @@ extern                      esp8266StateMachines connectToSelected_AP(void (*wrF
 
 
 
-
-
-
+                            esp8266StateMachines retrieveConnectionDetails(struct _wifiParams *,
+                                                                           void (*wrFptr)(const void *, size_t ),
+                                                                           void (*rdFptr)(void *, size_t , size_t* ),
+                                                                           esp8266StateMachines );
+extern                     esp8266StateMachines connectToServer(void (*wrFptr)(const void *, size_t ),
+                                                                      void (*rdFptr)(void *, size_t , size_t* ),
+                                                                      char* serverUrl,
+                                                                      char* port,
+                                                                      clientConnectionTypes connType, esp8266StateMachines entryState);
 
 
 #endif /* TW_ESP01__H_ */

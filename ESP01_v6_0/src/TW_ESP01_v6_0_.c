@@ -237,6 +237,35 @@ esp8266StateMachines retrieveConnectionDetails(struct _wifiParams *wifiparams_t,
         timeout1 = 0;
     } while (timeout1 > 0);
 
+    // Check for Pinging
+
+    rdFptr(NULL,0,NULL);
+    memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
+    rdFptr(&_espDataBuff,2048,NULL);
+    wrFptr("AT+PING=\"www.turjasuzworld.in\"\r\n",__ENTIRE_LENGTH_OF("AT+PING=\"www.turjasuzworld.in\"\r\n"));
+    timeout1 = 5;
+    do {
+        sleep(5);
+        buffPtr = &_espDataBuff[0];
+        mdmRply = strstr(buffPtr, "OK");
+        if(mdmRply) {
+            _pOnState =  _E8266_PING_SUCCESS;
+            mdmRply = strstr(buffPtr, "+");
+            mdmRply++;
+            idx=0;
+            while(((*mdmRply) != '\r')&&(idx<4)) {
+                wifiparams_t->_wifiInetPingMs[idx] = *mdmRply;
+                mdmRply++;
+                idx++;
+            }
+            timeout1 = 0;
+        } else if (NULL != strstr(buffPtr, "ERROR")) {
+            _pOnState =  _E8266_PING_FAIL;
+            timeout1--;
+        }
+
+    } while (timeout1 > 0);
+
     return _pOnState;
 }
 
@@ -274,7 +303,8 @@ esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
             // Optional populate the IP address received AT+CIFSR\r\n//
 #ifdef      _WIFI_CONN_DETAILS_NEEDED_
             _pOnState = retrieveConnectionDetails(&wifiParamsRetrieved, wrFptr, rdFptr, _pOnState);
-            if(_pOnState == _E8266_CIFSR_COMPLETE) timeout = 0;
+            if((_pOnState == _E8266_CIFSR_COMPLETE)||(_pOnState == _E8266_PING_SUCCESS)) timeout = 0;
+            // if(_pOnState == _E8266_PING_FAIL) timeout = 0; // ENABLE THIS LINE ONLY IF YOU WANT TO IGNORE PING FAILURES
 #else
             timeout = 0;
 #endif
@@ -290,4 +320,97 @@ esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
 
     return  _pOnState;
 }
+
+/* Establish TCP / UDP / SSL Connection using ESP01 Modem.
+ * Can be made generic to other modules later
+ *
+ * // Single connection (AT+CIPMUX=0):
+ * AT+CIPSTART=<"type">,<"remote host">,<remote port>[,<keep alive>][,<"local IP">]
+ *
+ * // Multiple Connections (AT+CIPMUX=1):
+ * AT+CIPSTART=<link ID>,<"type">,<"remote host">,<remote port>[,<keep alive>][,<"local IP">]
+ *
+ */
+esp8266StateMachines connectToServer(void (*wrFptr)(const void *, size_t ),
+                                          void (*rdFptr)(void *, size_t , size_t* ),
+                                          char* serverUrl,
+                                          char* port,
+                                          clientConnectionTypes connType, esp8266StateMachines entryState) {
+    esp8266StateMachines _pOnState = entryState;
+    if(!((entryState == _E8266_PING_SUCCESS)||(entryState == _E8266_CIFSR_COMPLETE))) {
+        return _E8266_CIPSTART_ERROR;
+    }
+    if((connType != _Esp_TCP)&&(connType != _Esp_UDP)&&(connType != _Esp_TCPv6)&&(connType != _Esp_TCP_SSL)) {
+        return _E8266_CIPSTART_CONNTYPE_ERROR;
+    }
+    if((NULL == serverUrl)||(NULL == port)) {
+        return _E8266_CIPSTART_SRVR_PTR_OR_PORT_VAL_NULL;
+    }
+    int timeout = 3;
+    char*   mdmRply = NULL;
+    char*   buffPtr = NULL;
+    //char _atCmdStr[100] = "AT+CIPSTART=\"TCP\",\"";
+    char _atCmdStr[100] = "AT+CIPSTART=\"";
+    char* _p_atCmdStr = _atCmdStr;
+    switch (connType) {
+        case _Esp_TCP:
+            _p_atCmdStr = strcat(_p_atCmdStr, "TCP\",\"");
+            break;
+        case _Esp_TCP_SSL:
+            _p_atCmdStr = strcat(_p_atCmdStr, "SSL\",\"");
+            break;
+        default:
+            break;
+    }
+    _p_atCmdStr = strcat(_p_atCmdStr, (const char*)serverUrl);
+    _p_atCmdStr = strcat(_p_atCmdStr, "\",");
+    _p_atCmdStr = strcat(_p_atCmdStr, (const char*)port);
+    _p_atCmdStr = strcat(_p_atCmdStr, "\r\n");
+    do {
+        memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
+        rdFptr(&_espDataBuff,2048,NULL);
+//        wrFptr("AT+CIPMUX=1\r\n",strlen("AT+CIPMUX=1\r\n"));
+//        sleep(5);
+        wrFptr(_p_atCmdStr,strlen((const char*)_p_atCmdStr));
+        sleep(10);
+        buffPtr = &_espDataBuff[0];
+        mdmRply = strstr(buffPtr, "CONNECT");
+        if(mdmRply) {
+            // succesfully connected to server
+            _pOnState = _E8266_CIPSTART_OK;
+            timeout = 0;
+        }
+        else if(NULL != strstr(buffPtr, "ALREADY")) {
+            // Already connection exists.. continue with sending data
+            _pOnState =  _E8266_CIPSTART_ALREADY_CONNCTD;
+            timeout = 0;
+        }
+        else if(NULL != strstr(buffPtr, "DNS Fail")) {
+            // set the correct failure cause for DNS Failure reported
+            _pOnState =  _E8266_CIPSTART_DNS_ERROR;
+
+            timeout = 0;
+        }
+        else if(NULL != strstr(buffPtr, "FAIL")) {
+            // set the correct failure cause for DNS Failure reported
+            _pOnState =  _E8266_CIPSTART_ERROR;
+
+            timeout--;
+        }
+        else if(NULL != strstr(buffPtr, "CLOSED")) {
+            // set the correct failure cause for DNS Failure reported
+            _pOnState =  _E8266_CIPSTART_CLOSE_ERROR;
+            timeout--;
+        }
+        else {
+            // Other undefined error, may need to restart ESP01 module
+            _pOnState =  _E8266_CIPSTART_ERROR;
+            timeout = 0;
+        }
+        rdFptr(NULL,0,NULL);
+    } while ((_pOnState !=  _E8266_CIPSTART_OK)&&(timeout>0));
+
+    return  _pOnState;
+}
+
 

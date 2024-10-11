@@ -175,6 +175,7 @@ void *testThread(void *arg0)
          while (1);
      }
     static esp8266StateMachines basicState = _E8266_PWR_UP;
+    struct  _wifiParams* ptrToConnectionDetails;
     while(1) {
 
         switch (basicState) {
@@ -201,7 +202,18 @@ void *testThread(void *arg0)
                                                   &readFromEspUart,
                                                   "TurjasuBLR_2.4G",
                                                   "Stk#41912", NULL);
-                struct  _wifiParams* ptrToConnectionDetails = &wifiParamsRetrieved;
+                ptrToConnectionDetails = &wifiParamsRetrieved;
+                break;
+
+            case _E8266_CIFSR_COMPLETE:
+            case _E8266_PING_SUCCESS:
+                // Try to connect to Server using TCP/UDP
+                basicState = connectToServer(&writeToEspUart,
+                                             &readFromEspUart,
+                                             "turjasuzworld.in",
+                                             "80" ,
+                                             _Esp_TCP,
+                                             basicState);
                 break;
             default:
                 break;

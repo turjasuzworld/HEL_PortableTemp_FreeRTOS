@@ -87,6 +87,7 @@ int main(void)
         while (1) {}
     }
 
+
     retc = pthread_create(&thread, &attrs, testThread, NULL);
     if (retc != 0) {
         /* pthread_create() failed */
