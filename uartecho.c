@@ -105,6 +105,14 @@ void esp01GpioCtrlFxn(void *arg0)
     GPIO_write(TW_ESP01_RST, 1);
 }
 
+void esp01ResetFxn(void *arg0)
+{
+    GPIO_write(TW_ESP01_EN, 0);
+    sleep(1);
+    GPIO_write(TW_ESP01_EN, 1);
+    sleep(1);
+}
+
 void esp01GpioDisableFxn(void *arg0)
 {
     GPIO_write(TW_ESP01_EN, 0);
@@ -179,6 +187,7 @@ void *testThread(void *arg0)
     while(1) {
 
         switch (basicState) {
+            case _E8266_SEND_OK_AND_CLOSED_NOT_RECVD:
             case _E8266_PWR_UP: //Check ESP01 module presence
                 basicState = checkPresenceEsp01Module(&esp01GpioInitFxn,
                                                       &esp01GpioCtrlFxn,
@@ -200,13 +209,15 @@ void *testThread(void *arg0)
             case _E8266_SSID_LISTED:
                 basicState = connectToSelected_AP(&writeToEspUart,
                                                   &readFromEspUart,
-                                                  "TurjasuBLR_2.4G",
-                                                  "Stk#41912", NULL);
+                                                  "Hel Secure",
+                                                  "helsite987", NULL);
                 ptrToConnectionDetails = &wifiParamsRetrieved;
                 break;
 
             case _E8266_CIFSR_COMPLETE:
             case _E8266_PING_SUCCESS:
+            case _E8266_SEND_OK_RECVD: // For backward compatibility, _E8266_SEND_OK_AND_CLOSED_RECVD added to resolve
+            case _E8266_SEND_OK_AND_CLOSED_RECVD:
                 // Try to connect to Server using TCP/UDP
                 basicState = connectToServer(&writeToEspUart,
                                              &readFromEspUart,
@@ -215,6 +226,16 @@ void *testThread(void *arg0)
                                              _Esp_TCP,
                                              basicState);
                 break;
+
+            case _E8266_CIPSTART_OK:
+                // Try to connect to Server using TCP/UDP
+                basicState = sendDataToConnectedSocket(&writeToEspUart,
+                                                       &readFromEspUart,
+                                                       "GET http://www.turjasuzworld.in/demo/api/setdevicetemp.php?did=TD1003-1&temp=000.00&day=19&mon=07&year=2020&hh=15&mm=52&ss=47&signal=45 HTTP/1.1\r\nHost: Turjasu\r\nConnection: keep-alive\r\n\r\n",
+                                                       _Esp_TCP,
+                                                       basicState);
+                break;
+
             default:
                 break;
         }

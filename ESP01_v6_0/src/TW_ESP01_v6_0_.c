@@ -337,7 +337,7 @@ esp8266StateMachines connectToServer(void (*wrFptr)(const void *, size_t ),
                                           char* port,
                                           clientConnectionTypes connType, esp8266StateMachines entryState) {
     esp8266StateMachines _pOnState = entryState;
-    if(!((entryState == _E8266_PING_SUCCESS)||(entryState == _E8266_CIFSR_COMPLETE))) {
+    if(!((entryState == _E8266_PING_SUCCESS)||(entryState == _E8266_CIFSR_COMPLETE)||(entryState == _E8266_SEND_OK_RECVD)||(entryState == _E8266_SEND_OK_AND_CLOSED_RECVD))) {
         return _E8266_CIPSTART_ERROR;
     }
     if((connType != _Esp_TCP)&&(connType != _Esp_UDP)&&(connType != _Esp_TCPv6)&&(connType != _Esp_TCP_SSL)) {
@@ -413,4 +413,131 @@ esp8266StateMachines connectToServer(void (*wrFptr)(const void *, size_t ),
     return  _pOnState;
 }
 
+/*/////////////////////////////////////////////////////////////////////////////
+ * API to keep sending data to a connected socket to Server using the UDP / TCP
+ * Socket.
+ * // Single connection: (AT+CIPMUX=0)
+ * AT+CIPSEND=<length>
+ *
+ * // Multiple connections: (AT+CIPMUX=1)
+ * AT+CIPSEND=<link ID>,<length>
+ *
+ * // Remote host and port can be set for UDP transmission:
+ * AT+CIPSEND=[<link ID>,]<length>[,<"remote host">,<remote port>]_E8266_SEND_OK_AND_CLOSED_RECVD
+ *
+ *///////////////////////////////////////////////////////////////////////////////
+esp8266StateMachines sendDataToConnectedSocket(void (*wrFptr)(const void *, size_t ),
+                                          void (*rdFptr)(void *, size_t , size_t* ),
+                                          char* dataToBeSent,
+                                          clientConnectionTypes connType,
+                                          esp8266StateMachines entryState) {
+    esp8266StateMachines _pOnState = entryState;
+    clientConnectionTypes _connType = connType;
+    if(!((entryState == _E8266_CIPSTART_OK)||
+            (entryState == _E8266_CIPSTART_ALREADY_CONNCTD)||
+            (entryState == _E8266_SEND_OK_RECVD)||
+            //(entryState == _E8266_SEND_OK_AND_CLOSED_RECVD)||
+            (entryState == _E8266_SEND_TIMEOUT))) {
+        return _E8266_CIPSEND_PRECONDITION_FAIL;
+    }
+    if((_connType != _Esp_TCP)&&(_connType != _Esp_UDP)&&(_connType != _Esp_TCPv6)&&(_connType != _Esp_TCP_SSL)) {
+        return _E8266_CIPSTART_CONNTYPE_ERROR;
+    }
+    if(NULL == dataToBeSent) {
+        return _E8266_CIPSTART_DATA_PTR_VAL_NULL;
+    }
+    int timeout, timeout2, retCode;
+    static int datalen;
+    char*   mdmRply = NULL;
+    char*   buffPtr = NULL;
+    char    datalenStr[6];
+    char _atCmdStr[100] = "AT+CIPSEND=";
+    char* _p_atCmdStr = _atCmdStr;
+    //_p_atCmdStr = strcat(_p_atCmdStr, (const char*)dataToBeSent);
+    datalen = strlen((const char*)dataToBeSent);
+    retCode = sprintf(datalenStr, "%d\r\n",datalen);
+    if(retCode < 0) {
+        // handle sprintf error case
+    }
+    _p_atCmdStr = strcat(_p_atCmdStr, (const char*)datalenStr);
+//    switch (_connType) {
+//        case _Esp_TCP:
+//
+//
+//
+//            break;
+//        case _Esp_UDP:
+//            //Yet to be handled //
+//            break;
+//        default:
+//            break;
+//    }
+    timeout=3;
+    do {
+        memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
+        rdFptr(&_espDataBuff,2048,NULL);
+        wrFptr(_p_atCmdStr,strlen((const char*)_p_atCmdStr));
+        sleep(3);
+        buffPtr = &_espDataBuff[0];
+        //mdmRply = strstr(buffPtr, "OK\r\n>");
+        if(NULL !=strstr(buffPtr, "CLOSED")) {
+            // check if connection has been closed from server side
+            _pOnState = _E8266_CIPSEND_CONN_SRVR_CLOSED;
+                    //decrement timeout
+                    timeout--;
+                }
+        else if(NULL !=strstr(buffPtr, "OK\r\n>")) {
+            // Modem has sent '>' Proceed to TX data
+            _pOnState = _E8266_CIPSEND_ARROW_SUCCESS;
+            // TX data routine
 
+            timeout=0;
+        }
+        else if(NULL !=strstr(buffPtr, "ERROR")) {
+            // server connection error, retry or abort
+            _pOnState = _E8266_CIPSEND_ARROW_FAIL;
+            //decrement timeout
+            timeout--;
+        }
+        rdFptr(NULL,0,NULL);
+    } while ((_pOnState !=  _E8266_CIPSEND_ARROW_SUCCESS)&&(timeout>0));
+
+    // Send data only when '>' is sent
+    timeout=3;
+    do {
+        memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
+        rdFptr(&_espDataBuff,2048,NULL);
+        wrFptr(dataToBeSent,datalen);
+        sleep(3);
+        buffPtr = &_espDataBuff[0];
+        if(NULL !=strstr(buffPtr, "SEND OK")) {
+            _pOnState = _E8266_SEND_OK_RECVD;
+            // Check if 0\r\n\r\nCLOSED
+            timeout2 = 3;
+            while(timeout2 > 0) {
+                if(NULL !=strstr(buffPtr, "0\r\n\r\nCLOSED")) {
+                    timeout2 = 0;
+                    _pOnState = _E8266_SEND_OK_AND_CLOSED_RECVD;
+                } else {
+                    sleep(3); // 3 seconds wait time for server to respond
+                    timeout2--;
+                    if(timeout2 == 0) {
+                        _pOnState = _E8266_SEND_OK_AND_CLOSED_NOT_RECVD;
+                    }
+                }
+            }
+            timeout = 0;
+        }
+        else if(NULL !=strstr(buffPtr, "FAIL")) {
+            _pOnState = _E8266_SEND_FAIL;
+            timeout --;
+        }
+        else if(NULL !=strstr(buffPtr, "CLOSED")) {
+            _pOnState = _E8266_SEND_OK_RECVD;
+            timeout = 0;
+        }
+        rdFptr(NULL,0,NULL);
+    } while ((_pOnState !=  _E8266_SEND_OK_RECVD)&&(timeout>0));
+
+    return _pOnState;
+}

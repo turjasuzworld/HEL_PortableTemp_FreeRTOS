@@ -9,6 +9,7 @@
 #define TW_ESP01__H_
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
@@ -119,12 +120,17 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_CIPSTART_TIMEOUT,
         _E8266_CIPSTART_SRVR_PTR_OR_PORT_VAL_NULL,
         _E8266_CIPSTART_ALREADY_CONNCTD,
+        _E8266_CIPSEND_CONN_SRVR_CLOSED,
         _E8266_CIPSEND_ARROW_SUCCESS,
+        _E8266_CIPSEND_PRECONDITION_FAIL,
+        _E8266_CIPSTART_DATA_PTR_VAL_NULL,
         _E8266_CIPSEND_ARROW_FAIL,  // ALSO INCLUDES TIMEOUT
         _E8266_CIPSEND_ARROW_TIMEOUT,
         _E8266_CIPCLOSE_FAIL,
         _E8266_CIPCLOSED_SUCCESS,
         _E8266_SEND_OK_RECVD,               //60
+        _E8266_SEND_OK_AND_CLOSED_RECVD,
+        _E8266_SEND_OK_AND_CLOSED_NOT_RECVD,
         _E8266_SEND_FAIL,
         _E8266_SEND_TIMEOUT,
         _E8266_MODULE_EXIT,
@@ -193,6 +199,11 @@ extern                     esp8266StateMachines connectToServer(void (*wrFptr)(c
                                                                       char* serverUrl,
                                                                       char* port,
                                                                       clientConnectionTypes connType, esp8266StateMachines entryState);
+extern                      esp8266StateMachines sendDataToConnectedSocket(void (*wrFptr)(const void *, size_t ),
+                                                                           void (*rdFptr)(void *, size_t , size_t* ),
+                                                                           char* dataToBeSent,
+                                                                           clientConnectionTypes connType,
+                                                                           esp8266StateMachines entryState);
 
 
 #endif /* TW_ESP01__H_ */

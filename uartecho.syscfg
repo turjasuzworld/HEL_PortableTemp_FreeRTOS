@@ -12,7 +12,10 @@ const GPIO   = scripting.addModule("/ti/drivers/GPIO");
 const GPIO1  = GPIO.addInstance();
 const GPIO2  = GPIO.addInstance();
 const GPIO3  = GPIO.addInstance();
+const GPIO4  = GPIO.addInstance();
 const RTOS   = scripting.addModule("/ti/drivers/RTOS");
+const SPI    = scripting.addModule("/ti/drivers/SPI", {}, false);
+const SPI1   = SPI.addInstance();
 const UART   = scripting.addModule("/ti/drivers/UART");
 const UART1  = UART.addInstance();
 const UART2  = scripting.addModule("/ti/drivers/UART2", {}, false);
@@ -32,7 +35,15 @@ GPIO3.$name           = "TW_ESP01_EN";
 GPIO3.mode            = "Output";
 GPIO3.gpioPin.$assign = "boosterpack.18";
 
+GPIO4.$name     = "CONFIG_GPIO_LED_1";
+GPIO4.$hardware = system.deviceData.board.components.D2;
+
 RTOS.name = "FreeRTOS";
+
+SPI1.$name                = "CONFIG_SPI_MASTER";
+SPI1.mode                 = "Four Pin SS Active Low";
+SPI1.defaultTxBufferValue = "0xFFFF";
+SPI1.spi.$assign          = "SSI2";
 
 UART1.$name = "CONFIG_UART_0";
 
@@ -44,11 +55,18 @@ UART21.$name = "CONFIG_UART2_0";
  * re-solve from scratch.
  */
 GPIO1.gpioPin.$suggestSolution            = "expansion.87";
-UART1.uart.$suggestSolution               = "UART2";
-UART1.uart.txPin.$suggestSolution         = "boosterpack2.17";
-UART1.uart.rxPin.$suggestSolution         = "expansion.25";
-UART21.uart.$suggestSolution              = "UART7";
-UART21.uart.txPin.$suggestSolution        = "boosterpack.4";
-UART21.uart.dmaTxChannel.$suggestSolution = "UDMA_CH21";
-UART21.uart.rxPin.$suggestSolution        = "boosterpack.3";
-UART21.uart.dmaRxChannel.$suggestSolution = "UDMA_CH20";
+GPIO4.gpioPin.$suggestSolution            = "expansion.85";
+SPI1.spi.sclkPin.$suggestSolution         = "boosterpack.7";
+SPI1.spi.misoPin.$suggestSolution         = "boosterpack.14";
+SPI1.spi.mosiPin.$suggestSolution         = "boosterpack.15";
+SPI1.spi.dmaRxChannel.$suggestSolution    = "UDMA_CH12";
+SPI1.spi.dmaTxChannel.$suggestSolution    = "UDMA_CH13";
+SPI1.spi.ssPin.$suggestSolution           = "boosterpack2.2";
+UART1.uart.$suggestSolution               = "UART7";
+UART1.uart.txPin.$suggestSolution         = "boosterpack.4";
+UART1.uart.rxPin.$suggestSolution         = "boosterpack.3";
+UART21.uart.$suggestSolution              = "UART3";
+UART21.uart.txPin.$suggestSolution        = "boosterpack2.30";
+UART21.uart.dmaTxChannel.$suggestSolution = "UDMA_CH17";
+UART21.uart.rxPin.$suggestSolution        = "boosterpack2.29";
+UART21.uart.dmaRxChannel.$suggestSolution = "UDMA_CH16";
