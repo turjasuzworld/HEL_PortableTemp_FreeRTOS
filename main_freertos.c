@@ -50,6 +50,7 @@
 
 extern void *mainThread(void *arg0);
 extern void *testThread(void *arg0);
+extern void *spiThread(void *arg0);
 extern void esp01GpioInitFxn(void *arg0);
 extern void esp01GpioCtrlFxn(void *arg0);
 extern void esp01GpioDisableFxn(void *arg0);
@@ -62,9 +63,9 @@ extern void esp01GpioDisableFxn(void *arg0);
  */
 int main(void)
 {
-    pthread_t           thread;
-    pthread_attr_t      attrs;
-    struct sched_param  priParam;
+    pthread_t           thread, thread2;
+    pthread_attr_t      attrs, attrs2;
+    struct sched_param  priParam, priParam2;
     int                 retc;
 
     /* initialize the system locks */
@@ -93,6 +94,27 @@ int main(void)
         /* pthread_create() failed */
         while (1) {}
     }
+
+//    /* Initialize the attributes structure with default values */
+//    pthread_attr_init(&attrs2);
+//
+//    /* Set priority, detach state, and stack size attributes */
+//    priParam2.sched_priority = 2;
+//    retc = pthread_attr_setschedparam(&attrs2, &priParam2);
+//    retc |= pthread_attr_setdetachstate(&attrs2, PTHREAD_CREATE_DETACHED);
+//    retc |= pthread_attr_setstacksize(&attrs2, THREADSTACKSIZE);
+//    if (retc != 0) {
+//        /* failed to set attributes */
+//        while (1) {}
+//    }
+//
+//
+//    retc = pthread_create(&thread2, &attrs2, spiThread, NULL);
+//    if (retc != 0) {
+//        /* pthread_create() failed */
+//        while (1) {}
+//    }
+
 
     /* Start the FreeRTOS scheduler */
     vTaskStartScheduler();

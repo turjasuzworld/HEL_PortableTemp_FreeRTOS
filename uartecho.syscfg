@@ -1,8 +1,9 @@
 /**
  * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
  * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
- * @cliArgs --board "/ti/boards/MSP_EXP432E401Y" --product "simplelink_msp432e4_sdk@4.20.00.12"
- * @versions {"tool":"1.20.0+3587"}
+ * @cliArgs --board "/ti/boards/MSP_EXP432E401Y" --device "MSP432E" --part "MSP432E401YTPDT" --package "128 Pin QFP|32x32" --product "simplelink_msp432e4_sdk@4.20.00.12"
+ * @v2CliArgs --device "MSP432E401Y" --package "TQFP (PDT)" --board "/ti/boards/MSP_EXP432E401Y" --product "simplelink_msp432e4_sdk@4.20.00.12"
+ * @versions {"tool":"1.21.0+3721"}
  */
 
 /**
@@ -13,6 +14,11 @@ const GPIO1  = GPIO.addInstance();
 const GPIO2  = GPIO.addInstance();
 const GPIO3  = GPIO.addInstance();
 const GPIO4  = GPIO.addInstance();
+const GPIO5  = GPIO.addInstance();
+const GPIO6  = GPIO.addInstance();
+const GPIO7  = GPIO.addInstance();
+const GPIO8  = GPIO.addInstance();
+const GPIO9  = GPIO.addInstance();
 const RTOS   = scripting.addModule("/ti/drivers/RTOS");
 const SPI    = scripting.addModule("/ti/drivers/SPI", {}, false);
 const SPI1   = SPI.addInstance();
@@ -24,19 +30,41 @@ const UART21 = UART2.addInstance();
 /**
  * Write custom configuration values to the imported modules.
  */
-GPIO1.$hardware = system.deviceData.board.components.D1;
-GPIO1.$name     = "CONFIG_GPIO_LED_0";
+GPIO1.mode            = "Output";
+GPIO1.$name           = "STS_LED";
+GPIO1.gpioPin.$assign = "boosterpack.18";
 
 GPIO2.$name           = "TW_ESP01_RST";
 GPIO2.mode            = "Output";
-GPIO2.gpioPin.$assign = "boosterpack.17";
+GPIO2.gpioPin.$assign = "boosterpack2.34";
 
 GPIO3.$name           = "TW_ESP01_EN";
 GPIO3.mode            = "Output";
-GPIO3.gpioPin.$assign = "boosterpack.18";
+GPIO3.gpioPin.$assign = "boosterpack2.14";
 
-GPIO4.$name     = "CONFIG_GPIO_LED_1";
-GPIO4.$hardware = system.deviceData.board.components.D2;
+GPIO4.mode            = "Output";
+GPIO4.$name           = "FLT_LED";
+GPIO4.gpioPin.$assign = "boosterpack2.33";
+
+GPIO5.$name           = "MAX6675_1";
+GPIO5.mode            = "Output";
+GPIO5.gpioPin.$assign = "boosterpack2.40";
+
+GPIO6.$name           = "MAX6675_2";
+GPIO6.mode            = "Output";
+GPIO6.gpioPin.$assign = "boosterpack.37";
+
+GPIO7.$name           = "MAX6675_3";
+GPIO7.mode            = "Output";
+GPIO7.gpioPin.$assign = "boosterpack.38";
+
+GPIO8.$name           = "MAX6675_4";
+GPIO8.mode            = "Output";
+GPIO8.gpioPin.$assign = "boosterpack.39";
+
+GPIO9.$name           = "MAX6675_5";
+GPIO9.mode            = "Output";
+GPIO9.gpioPin.$assign = "boosterpack.40";
 
 RTOS.name = "FreeRTOS";
 
@@ -47,26 +75,24 @@ SPI1.spi.$assign          = "SSI2";
 
 UART1.$name = "CONFIG_UART_0";
 
-UART21.$name = "CONFIG_UART2_0";
+UART21.$name        = "CONFIG_UART2_0";
+UART21.uart.$assign = "UART7";
 
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
  * re-solve from scratch.
  */
-GPIO1.gpioPin.$suggestSolution            = "expansion.87";
-GPIO4.gpioPin.$suggestSolution            = "expansion.85";
 SPI1.spi.sclkPin.$suggestSolution         = "boosterpack.7";
 SPI1.spi.misoPin.$suggestSolution         = "boosterpack.14";
 SPI1.spi.mosiPin.$suggestSolution         = "boosterpack.15";
 SPI1.spi.dmaRxChannel.$suggestSolution    = "UDMA_CH12";
 SPI1.spi.dmaTxChannel.$suggestSolution    = "UDMA_CH13";
 SPI1.spi.ssPin.$suggestSolution           = "boosterpack2.2";
-UART1.uart.$suggestSolution               = "UART7";
-UART1.uart.txPin.$suggestSolution         = "boosterpack.4";
-UART1.uart.rxPin.$suggestSolution         = "boosterpack.3";
-UART21.uart.$suggestSolution              = "UART3";
-UART21.uart.txPin.$suggestSolution        = "boosterpack2.30";
-UART21.uart.dmaTxChannel.$suggestSolution = "UDMA_CH17";
-UART21.uart.rxPin.$suggestSolution        = "boosterpack2.29";
-UART21.uart.dmaRxChannel.$suggestSolution = "UDMA_CH16";
+UART1.uart.$suggestSolution               = "UART4";
+UART1.uart.txPin.$suggestSolution         = "expansion.8";
+UART1.uart.rxPin.$suggestSolution         = "expansion.6";
+UART21.uart.txPin.$suggestSolution        = "boosterpack.4";
+UART21.uart.dmaTxChannel.$suggestSolution = "UDMA_CH21";
+UART21.uart.rxPin.$suggestSolution        = "boosterpack.3";
+UART21.uart.dmaRxChannel.$suggestSolution = "UDMA_CH20";

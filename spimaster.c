@@ -52,7 +52,7 @@
 
 #define THREADSTACKSIZE (1024)
 
-#define SPI_MSG_LENGTH  (30)
+#define SPI_MSG_LENGTH  (1)
 #define MASTER_MSG      ("Hello from master, msg#: ")
 
 #define MAX_LOOP        (10)
@@ -79,14 +79,16 @@ void slaveReadyFxn(uint_least8_t index)
  *  Master SPI sends a message to slave while simultaneously receiving a
  *  message from the slave.
  */
-void *masterThread(void *arg0)
+void *spiThread(void *arg0)
 {
-    SPI_Handle      masterSpi;
-    SPI_Params      spiParams;
-    SPI_Transaction transaction;
-    uint32_t        i;
+
+//    uint32_t        i;
     bool            transferOK;
     int32_t         status;
+    uint16_t        t = 0;
+    float           temp = 0;
+    int i;
+    volatile uint_fast8_t pin;
 
     /*
      * CONFIG_SPI_MASTER_READY & CONFIG_SPI_SLAVE_READY are GPIO pins connected
@@ -113,85 +115,86 @@ void *masterThread(void *arg0)
      * Below we set CONFIG_SPI_MASTER_READY & CONFIG_SPI_SLAVE_READY initial
      * conditions for the 'handshake'.
      */
-    GPIO_setConfig(CONFIG_SPI_MASTER_READY, GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW);
-    GPIO_setConfig(CONFIG_SPI_SLAVE_READY, GPIO_CFG_INPUT);
+    GPIO_setConfig(CONFIG_SPI_MASTER_READY, GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH);
+    GPIO_setConfig(SPI_BB_SCK, GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH);
+    GPIO_setConfig(SPI_BB_MISO, GPIO_CFG_INPUT);
+//    GPIO_setConfig(CONFIG_SPI_SLAVE_READY, GPIO_CFG_INPUT);
 
+    // Make CS Low
+    GPIO_write(CONFIG_SPI_MASTER_READY, 0);
+    usleep(100000);
+
+    // Read input with each SCK
+    for (i = 0; i < 16; ++i) {
+        GPIO_write(SPI_BB_SCK, 0);
+        usleep(100000);
+        pin = GPIO_read(SPI_BB_MISO);
+        if(pin) {
+            t |= (1UL << i);
+        }
+        GPIO_write(SPI_BB_SCK, 1);
+        usleep(100000);
+    }
+
+    //Make CS Hi
+    GPIO_write(CONFIG_SPI_MASTER_READY, 1);
+    t>>=3;
+    temp = t*0.25;
     /*
      * Handshake - Set CONFIG_SPI_MASTER_READY high to indicate master is ready
      * to run.  Wait CONFIG_SPI_SLAVE_READY to be high.
      */
-    GPIO_write(CONFIG_SPI_MASTER_READY, 1);
-    while (GPIO_read(CONFIG_SPI_SLAVE_READY) == 0) {}
+//    GPIO_write(CONFIG_SPI_MASTER_READY, 1);
+//    while (GPIO_read(CONFIG_SPI_SLAVE_READY) == 0) {}
 
     /* Handshake complete; now configure interrupt on CONFIG_SPI_SLAVE_READY */
-    GPIO_setConfig(CONFIG_SPI_SLAVE_READY, GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_FALLING);
-    GPIO_setCallback(CONFIG_SPI_SLAVE_READY, slaveReadyFxn);
-    GPIO_enableInt(CONFIG_SPI_SLAVE_READY);
+//    GPIO_setConfig(CONFIG_SPI_SLAVE_READY, GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_FALLING);
+//    GPIO_setCallback(CONFIG_SPI_SLAVE_READY, slaveReadyFxn);
+//    GPIO_enableInt(CONFIG_SPI_SLAVE_READY);
 
     /*
      * Create synchronization semaphore; the master will wait on this semaphore
      * until the slave is ready.
      */
-    status = sem_init(&masterSem, 0, 0);
-    if (status != 0) {
-        Display_printf(display, 0, 0, "Error creating masterSem\n");
+//    status = sem_init(&masterSem, 0, 0);
+//    if (status != 0) {
+//        Display_printf(display, 0, 0, "Error creating masterSem\n");
+//
+//        while(1);
+//    }
 
-        while(1);
-    }
 
-    /* Open SPI as master (default) */
-    SPI_Params_init(&spiParams);
-    spiParams.frameFormat = SPI_POL0_PHA1;
-    spiParams.bitRate = 10000000;
-    masterSpi = SPI_open(CONFIG_SPI_MASTER, &spiParams);
-    if (masterSpi == NULL) {
-        Display_printf(display, 0, 0, "Error initializing master SPI\n");
-        while (1);
-    }
-    else {
-        Display_printf(display, 0, 0, "Master SPI initialized\n");
-    }
 
     /*
      * Master has opened CONFIG_SPI_MASTER; set CONFIG_SPI_MASTER_READY high to
      * inform the slave.
      */
-    GPIO_write(CONFIG_SPI_MASTER_READY, 0);
+//    GPIO_write(CONFIG_SPI_MASTER_READY, 0);
 
-    /* Copy message to transmit buffer */
-    strncpy((char *) masterTxBuffer, MASTER_MSG, SPI_MSG_LENGTH);
 
-    for (i = 0; i < MAX_LOOP; i++) {
+
+//    for (i = 0; i < MAX_LOOP; i++) {
         /*
          * Wait until slave is ready for transfer; slave will pull
          * CONFIG_SPI_SLAVE_READY low.
          */
-        sem_wait(&masterSem);
+//        sem_wait(&masterSem);
 
         /* Initialize master SPI transaction structure */
-        masterTxBuffer[sizeof(MASTER_MSG) - 1] = (i % 10) + '0';
-        memset((void *) masterRxBuffer, 0, SPI_MSG_LENGTH);
-        transaction.count = SPI_MSG_LENGTH;
-        transaction.txBuf = (void *) masterTxBuffer;
-        transaction.rxBuf = (void *) masterRxBuffer;
+//        masterTxBuffer[sizeof(MASTER_MSG) - 1] = (i % 10) + '0';
+
 
         /* Toggle user LED, indicating a SPI transfer is in progress */
         GPIO_toggle(CONFIG_GPIO_LED_1);
 
+        while(1) {
+
+        }
         /* Perform SPI transfer */
-        transferOK = SPI_transfer(masterSpi, &transaction);
-        if (transferOK) {
-            Display_printf(display, 0, 0, "Master received: %s", masterRxBuffer);
-        }
-        else {
-            Display_printf(display, 0, 0, "Unsuccessful master SPI transfer");
-        }
 
-        /* Sleep for a bit before starting the next SPI transfer  */
-        sleep(3);
-    }
+//    }
 
-    SPI_close(masterSpi);
+
 
     /* Example complete - set pins to a known state */
     GPIO_disableInt(CONFIG_SPI_SLAVE_READY);
@@ -206,63 +209,63 @@ void *masterThread(void *arg0)
 /*
  *  ======== mainThread ========
  */
-void *mainThread(void *arg0)
-{
-    pthread_t           thread0;
-    pthread_attr_t      attrs;
-    struct sched_param  priParam;
-    int                 retc;
-    int                 detachState;
-
-    /* Call driver init functions. */
-    Display_init();
-    GPIO_init();
-    SPI_init();
-
-    /* Configure the LED pins */
-    GPIO_setConfig(CONFIG_GPIO_LED_0, GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW);
-    GPIO_setConfig(CONFIG_GPIO_LED_1, GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW);
-
-    /* Open the display for output */
-    display = Display_open(Display_Type_UART, NULL);
-    if (display == NULL) {
-        /* Failed to open display driver */
-        while (1);
-    }
-
-    /* Turn on user LED */
-    GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_ON);
-
-    Display_printf(display, 0, 0, "Starting the SPI master example");
-    Display_printf(display, 0, 0, "This example requires external wires to be "
-        "connected to the header pins. Please see the Board.html for details.\n");
-
-    /* Create application threads */
-    pthread_attr_init(&attrs);
-
-    detachState = PTHREAD_CREATE_DETACHED;
-    /* Set priority and stack size attributes */
-    retc = pthread_attr_setdetachstate(&attrs, detachState);
-    if (retc != 0) {
-        /* pthread_attr_setdetachstate() failed */
-        while (1);
-    }
-
-    retc |= pthread_attr_setstacksize(&attrs, THREADSTACKSIZE);
-    if (retc != 0) {
-        /* pthread_attr_setstacksize() failed */
-        while (1);
-    }
-
-    /* Create master thread */
-    priParam.sched_priority = 1;
-    pthread_attr_setschedparam(&attrs, &priParam);
-
-    retc = pthread_create(&thread0, &attrs, masterThread, NULL);
-    if (retc != 0) {
-        /* pthread_create() failed */
-        while (1);
-    }
-
-    return (NULL);
-}
+//void *mainThread(void *arg0)
+//{
+//    pthread_t           thread0;
+//    pthread_attr_t      attrs;
+//    struct sched_param  priParam;
+//    int                 retc;
+//    int                 detachState;
+//
+//    /* Call driver init functions. */
+//    Display_init();
+//    GPIO_init();
+//    SPI_init();
+//
+//    /* Configure the LED pins */
+//    GPIO_setConfig(CONFIG_GPIO_LED_0, GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW);
+//    GPIO_setConfig(CONFIG_GPIO_LED_1, GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW);
+//
+//    /* Open the display for output */
+//    display = Display_open(Display_Type_UART, NULL);
+//    if (display == NULL) {
+//        /* Failed to open display driver */
+//        while (1);
+//    }
+//
+//    /* Turn on user LED */
+//    GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_ON);
+//
+//    Display_printf(display, 0, 0, "Starting the SPI master example");
+//    Display_printf(display, 0, 0, "This example requires external wires to be "
+//        "connected to the header pins. Please see the Board.html for details.\n");
+//
+//    /* Create application threads */
+//    pthread_attr_init(&attrs);
+//
+//    detachState = PTHREAD_CREATE_DETACHED;
+//    /* Set priority and stack size attributes */
+//    retc = pthread_attr_setdetachstate(&attrs, detachState);
+//    if (retc != 0) {
+//        /* pthread_attr_setdetachstate() failed */
+//        while (1);
+//    }
+//
+//    retc |= pthread_attr_setstacksize(&attrs, THREADSTACKSIZE);
+//    if (retc != 0) {
+//        /* pthread_attr_setstacksize() failed */
+//        while (1);
+//    }
+//
+//    /* Create master thread */
+//    priParam.sched_priority = 1;
+//    pthread_attr_setschedparam(&attrs, &priParam);
+//
+//    retc = pthread_create(&thread0, &attrs, masterThread, NULL);
+//    if (retc != 0) {
+//        /* pthread_create() failed */
+//        while (1);
+//    }
+//
+//    return (NULL);
+//}

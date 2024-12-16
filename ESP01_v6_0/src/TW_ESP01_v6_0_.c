@@ -237,6 +237,7 @@ esp8266StateMachines retrieveConnectionDetails(struct _wifiParams *wifiparams_t,
         timeout1 = 0;
     } while (timeout1 > 0);
 
+
     // Check for Pinging
 
     rdFptr(NULL,0,NULL);

@@ -16,4 +16,5 @@
 	<templateProperties value="id=uartecho_MSP_EXP432E401Y_freertos_ccs.projectspec.uartecho_MSP_EXP432E401Y_freertos_ccs,buildProfile=release,isHybrid=true"/>
 	<origin value="C:\ti\simplelink_msp432e4_sdk_4_20_00_12\examples\rtos\MSP_EXP432E401Y\drivers\uartecho\freertos\ccs\uartecho_MSP_EXP432E401Y_freertos_ccs.projectspec"/>
 	<filesToOpen value=""/>
+	<activeTargetConfiguration value="targetConfigs/MSP432E401Y.ccxml"/>
 </projectOptions>
