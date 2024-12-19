@@ -61,6 +61,7 @@ int32_t         status;
 uint16_t        t = 0;
 int_fast16_t Gstatus;
 uint8_t buff_Read[2048]={0};
+//volatile float   read_temp_arr[10];
 UART2_Handle uart;
 UART2_Params uartParams;
 bool replyDone = false;
@@ -264,6 +265,7 @@ void *testThread(void *arg0)
      }
     static esp8266StateMachines basicState = _E8266_PWR_UP;
     struct  _wifiParams* ptrToConnectionDetails;
+    struct  _E8266ConnectFailureCauses* ptrCountE8266FailureCauses = &countE8266FailureCauses;
     volatile float read_temp = 0;
     volatile int TC_Count = 0, var = 0;
     char* tmp = NULL;
@@ -318,6 +320,45 @@ void *testThread(void *arg0)
                 ptrToConnectionDetails = &wifiParamsRetrieved;
                 break;
 
+            case _E8266_CIPSTART_DNS_ERROR:
+
+                GPIO_write(FLT_LED, 1);
+
+                break;
+            case _E8266_CIPSTART_ERROR:
+                // ALTHOUGH SAME CASE, DO NOT CLUB WITH case _E8266_SERVR_CONNECT_TIMEOUT
+                // retry 5 times to connect to server, if not then restart modem
+                GPIO_write(FLT_LED, 1);
+                if(++ptrCountE8266FailureCauses->_cause_E8266_CIPSTART_ERROR < 5) {
+                    //basicState = _E8266_SSID_LISTED;
+                }
+                else {
+                    //basicState = _E8266_PWR_UP;
+                }
+                break;
+
+            case _E8266_CIPSTART_CLOSE_ERROR:
+
+
+                break;
+            case _E8266_CIPSTART_ALREADY_CONNCTD:
+
+
+                break;
+            case _E8266_SERVR_CONNECT_TIMEOUT:
+
+                // retry 5 times to connect to server, if not then restart modem
+                GPIO_write(FLT_LED, 1);
+                if(++ptrCountE8266FailureCauses->_cause_E8266_SERVR_CONNECT_TIMEOUT < 5) {
+                    basicState = _E8266_MODULE_PRESENT;
+                }
+                else {
+                    basicState = _E8266_PWR_UP;
+                }
+
+
+
+                break;
             case _E8266_CIFSR_COMPLETE:
             case _E8266_PING_SUCCESS:
             case _E8266_SEND_OK_RECVD: // For backward compatibility, _E8266_SEND_OK_AND_CLOSED_RECVD added to resolve
@@ -366,7 +407,30 @@ void *testThread(void *arg0)
                         }
                     }
 
-//                for (TC_Count = 0; TC_Count < 5; ++TC_Count) {
+                    // Make a read value filter to avoid erratic readings //
+
+//                    for (var = 0; var < 50; ++var) {
+//
+//                        read_temp_arr[var] = readTempFromMAX6675(TC_Count + 1);
+//                    }
+//                    //sort them
+//                    unsigned int i,j,temp;
+//                    for (i=0; i<50; i++) {
+//                        for (j=i+1; j<50; j++) {
+//                            if (read_temp_arr[i] > read_temp_arr[j]) {
+//                                temp = read_temp_arr[i];
+//                                read_temp_arr[i] = read_temp_arr[j];
+//                                read_temp_arr[j] = temp;
+//                            }
+//                        }
+//                    }
+//                    // Band-pass Filter for central 60% data
+//                    for (i = 10; i < 40; ++i)
+//                    {
+//                        read_temp += read_temp_arr[i];
+//                    }
+//                    read_temp /= 30;
+                    //Make a single read, if filtering is not reqd :
                     read_temp = readTempFromMAX6675(TC_Count + 1);
                     ptrToUrl  = strstr(url, "did=TD1003-");
                     if(ptrToUrl)
@@ -400,12 +464,15 @@ void *testThread(void *arg0)
                 TC_Count++;
                 if(TC_Count == 5) TC_Count = 0;
                     }
-//                }
 
                 GPIO_write(STS_LED, 0);
                 break;
 
             default:
+                // Any other unknown and unhandled state should reboot the modem
+                GPIO_write(STS_LED, 0);
+                GPIO_write(FLT_LED, 1);
+                basicState = _E8266_PWR_UP;
                 break;
         }
     }

@@ -15,6 +15,7 @@ char   _espDataBuff[_ESP01_DATABUFF_MAX_] = {0};
 uint16_t        _dataReadFromEsp01;
 struct  _availableSSIDs     _scannedSsidList[_MAX_SSID_SCAN_SUPPORTED_] = {{._securityType = '1', ._ssidName = "TEST", ._ssidMACID = "ab:cd:ef:12:34:56"}};
 struct  _wifiParams     wifiParamsRetrieved;
+struct  _E8266ConnectFailureCauses  countE8266FailureCauses = {._cause_E8266_CIPSTART_CLOSE_ERROR = 0, ._cause_E8266_CIPSTART_DNS_ERROR = 0, ._cause_E8266_CIPSTART_ERROR = 0, ._cause_E8266_SERVR_CONNECT_TIMEOUT = 0};
 /*!
  *  @brief      Get the presence of ESP01 module to report to system. Does
  *              not initialize the module, but simple checks for the AT OK
@@ -298,6 +299,7 @@ esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
             // Modem busy, wait do nothing
             sleep(5);
             timeout--;
+            if(timeout == 0) _pOnState = _E8266_SERVR_CONNECT_BUSY;
         }
         else if(NULL != strstr(buffPtr, "\r\nOK\r\n")) {
             _pOnState =  _E8266_SERVR_CONNECT_SUCCESS;
@@ -315,6 +317,7 @@ esp8266StateMachines connectToSelected_AP(void (*wrFptr)(const void *, size_t ),
 
             //decrement timeout
             timeout--;
+            if(timeout == 0) _pOnState = _E8266_SERVR_CONNECT_TIMEOUT;
         }
         rdFptr(NULL,0,NULL);
     } while ((_pOnState !=  _E8266_SERVR_CONNECT_SUCCESS)&&(timeout>0));
@@ -447,6 +450,7 @@ esp8266StateMachines sendDataToConnectedSocket(void (*wrFptr)(const void *, size
     if(NULL == dataToBeSent) {
         return _E8266_CIPSTART_DATA_PTR_VAL_NULL;
     }
+    _pOnState = _E8266_CIPSEND_ARROW_TIMEOUT;
     int timeout, timeout2, retCode;
     static int datalen;
     char*   mdmRply = NULL;
@@ -504,41 +508,44 @@ esp8266StateMachines sendDataToConnectedSocket(void (*wrFptr)(const void *, size
     } while ((_pOnState !=  _E8266_CIPSEND_ARROW_SUCCESS)&&(timeout>0));
 
     // Send data only when '>' is sent
-    timeout=3;
-    do {
-        memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
-        rdFptr(&_espDataBuff,2048,NULL);
-        wrFptr(dataToBeSent,datalen);
-        sleep(3);
-        buffPtr = &_espDataBuff[0];
-        if(NULL !=strstr(buffPtr, "SEND OK")) {
-            _pOnState = _E8266_SEND_OK_RECVD;
-            // Check if 0\r\n\r\nCLOSED
-            timeout2 = 3;
-            while(timeout2 > 0) {
-                if(NULL !=strstr(buffPtr, "0\r\n\r\nCLOSED")) {
-                    timeout2 = 0;
-                    _pOnState = _E8266_SEND_OK_AND_CLOSED_RECVD;
-                } else {
-                    sleep(3); // 3 seconds wait time for server to respond
-                    timeout2--;
-                    if(timeout2 == 0) {
-                        _pOnState = _E8266_SEND_OK_AND_CLOSED_NOT_RECVD;
+    if(_pOnState ==  _E8266_CIPSEND_ARROW_SUCCESS) {
+        timeout=3;
+        do {
+            memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
+            rdFptr(&_espDataBuff,2048,NULL);
+            wrFptr(dataToBeSent,datalen);
+            sleep(3);
+            buffPtr = &_espDataBuff[0];
+            if(NULL !=strstr(buffPtr, "SEND OK")) {
+                _pOnState = _E8266_SEND_OK_RECVD;
+                // Check if 0\r\n\r\nCLOSED
+                timeout2 = 3;
+                while(timeout2 > 0) {
+                    if(NULL !=strstr(buffPtr, "0\r\n\r\nCLOSED")) {
+                        timeout2 = 0;
+                        _pOnState = _E8266_SEND_OK_AND_CLOSED_RECVD;
+                    } else {
+                        sleep(3); // 3 seconds wait time for server to respond
+                        timeout2--;
+                        if(timeout2 == 0) {
+                            _pOnState = _E8266_SEND_OK_AND_CLOSED_NOT_RECVD;
+                        }
                     }
                 }
+                timeout = 0;
             }
-            timeout = 0;
-        }
-        else if(NULL !=strstr(buffPtr, "FAIL")) {
-            _pOnState = _E8266_SEND_FAIL;
-            timeout --;
-        }
-        else if(NULL !=strstr(buffPtr, "CLOSED")) {
-            _pOnState = _E8266_SEND_OK_RECVD;
-            timeout = 0;
-        }
-        rdFptr(NULL,0,NULL);
-    } while ((_pOnState !=  _E8266_SEND_OK_RECVD)&&(timeout>0));
+            else if(NULL !=strstr(buffPtr, "FAIL")) {
+                _pOnState = _E8266_SEND_FAIL;
+                timeout --;
+            }
+            else if(NULL !=strstr(buffPtr, "CLOSED")) {
+                _pOnState = _E8266_SEND_OK_RECVD;
+                timeout = 0;
+            }
+            rdFptr(NULL,0,NULL);
+        } while ((_pOnState !=  _E8266_SEND_OK_RECVD)&&(timeout>0));
+    }
+
 
     return _pOnState;
 }

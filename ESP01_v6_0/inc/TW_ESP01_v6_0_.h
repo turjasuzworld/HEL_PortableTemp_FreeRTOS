@@ -89,6 +89,7 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_WIFI_CONCTD_SUCCESS,
         _E8266_WIFI_RCV_IP_SUCCESS,
         _E8266_SERVR_CONNECT_SUCCESS,
+        _E8266_SERVR_CONNECT_BUSY,
         _E8266_SERVR_CONNECT_TIMEOUT,
         _E8266_SERVR_DISCONNCT,
         _E8266_CWJAP_CONNECTING,
@@ -162,14 +163,23 @@ struct      _availableSSIDs {
             char    _ssidMACID[17];
 };
 
+struct      _E8266ConnectFailureCauses {
+            uint8_t     _cause_E8266_SERVR_CONNECT_TIMEOUT;
+            uint8_t     _cause_E8266_CIPSTART_ERROR;
+            uint8_t     _cause_E8266_CIPSTART_DNS_ERROR;
+            uint8_t     _cause_E8266_CIPSTART_CLOSE_ERROR;
+            uint8_t     _cause__E8266_CIPSTART_ERROR;
+};
+
 /*
  * Variables
  */
 extern      char   _espDataBuff[_ESP01_DATABUFF_MAX_];
 extern      uint16_t        _dataReadFromEsp01;
 extern      bool replyDone;
-extern      struct      _availableSSIDs     _scannedSsidList[_MAX_SSID_SCAN_SUPPORTED_];
-extern      struct      _wifiParams         wifiParamsRetrieved;
+extern      struct      _availableSSIDs             _scannedSsidList[_MAX_SSID_SCAN_SUPPORTED_];
+extern      struct      _wifiParams                 wifiParamsRetrieved;
+extern      struct      _E8266ConnectFailureCauses  countE8266FailureCauses;
 /*
  *  Functions
  */
