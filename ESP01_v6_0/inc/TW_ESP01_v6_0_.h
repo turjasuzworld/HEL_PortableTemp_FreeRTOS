@@ -135,6 +135,7 @@ typedef enum    { //POWER ON -> UNECHO SHRT RESPNSE -> SET NTWRK TIME SYNC -> CH
         _E8266_SEND_OK_AND_CLOSED_NOT_RECVD,
         _E8266_SEND_FAIL,
         _E8266_SEND_TIMEOUT,
+        _E8266_SEND_MODULE_ERROR,
         _E8266_MODULE_EXIT,
         _E8266_SM_CMD_ERROR,    // State MAchine Command could not be processed as the present state is wrong or not allowed
         _E8266_TEST_ENUM,
@@ -179,7 +180,7 @@ extern      uint16_t        _dataReadFromEsp01;
 extern      bool replyDone;
 extern      struct      _availableSSIDs             _scannedSsidList[_MAX_SSID_SCAN_SUPPORTED_];
 extern      struct      _wifiParams                 wifiParamsRetrieved;
-extern      struct      _E8266ConnectFailureCauses  countE8266FailureCauses;
+//extern      struct      _E8266ConnectFailureCauses  countE8266FailureCauses;
 /*
  *  Functions
  */

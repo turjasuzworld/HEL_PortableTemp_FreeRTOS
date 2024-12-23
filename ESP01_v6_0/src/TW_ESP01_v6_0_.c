@@ -15,7 +15,7 @@ char   _espDataBuff[_ESP01_DATABUFF_MAX_] = {0};
 uint16_t        _dataReadFromEsp01;
 struct  _availableSSIDs     _scannedSsidList[_MAX_SSID_SCAN_SUPPORTED_] = {{._securityType = '1', ._ssidName = "TEST", ._ssidMACID = "ab:cd:ef:12:34:56"}};
 struct  _wifiParams     wifiParamsRetrieved;
-struct  _E8266ConnectFailureCauses  countE8266FailureCauses = {._cause_E8266_CIPSTART_CLOSE_ERROR = 0, ._cause_E8266_CIPSTART_DNS_ERROR = 0, ._cause_E8266_CIPSTART_ERROR = 0, ._cause_E8266_SERVR_CONNECT_TIMEOUT = 0};
+//struct  _E8266ConnectFailureCauses  countE8266FailureCauses = {._cause_E8266_CIPSTART_CLOSE_ERROR = 0, ._cause_E8266_CIPSTART_DNS_ERROR = 0, ._cause_E8266_CIPSTART_ERROR = 0, ._cause_E8266_SERVR_CONNECT_TIMEOUT = 0};
 /*!
  *  @brief      Get the presence of ESP01 module to report to system. Does
  *              not initialize the module, but simple checks for the AT OK
@@ -381,19 +381,16 @@ esp8266StateMachines connectToServer(void (*wrFptr)(const void *, size_t ),
         mdmRply = strstr(buffPtr, "CONNECT");
         if(mdmRply) {
             // succesfully connected to server
-            _pOnState = _E8266_CIPSTART_OK;
-            timeout = 0;
+            _pOnState = _E8266_CIPSTART_OK; //
         }
         else if(NULL != strstr(buffPtr, "ALREADY")) {
             // Already connection exists.. continue with sending data
             _pOnState =  _E8266_CIPSTART_ALREADY_CONNCTD;
-            timeout = 0;
+
         }
         else if(NULL != strstr(buffPtr, "DNS Fail")) {
             // set the correct failure cause for DNS Failure reported
             _pOnState =  _E8266_CIPSTART_DNS_ERROR;
-
-            timeout = 0;
         }
         else if(NULL != strstr(buffPtr, "FAIL")) {
             // set the correct failure cause for DNS Failure reported
@@ -409,10 +406,16 @@ esp8266StateMachines connectToServer(void (*wrFptr)(const void *, size_t ),
         else {
             // Other undefined error, may need to restart ESP01 module
             _pOnState =  _E8266_CIPSTART_ERROR;
-            timeout = 0;
+            timeout--;
         }
         rdFptr(NULL,0,NULL);
-    } while ((_pOnState !=  _E8266_CIPSTART_OK)&&(timeout>0));
+    } while ((_pOnState !=  _E8266_CIPSTART_DNS_ERROR)&&
+             (_pOnState !=  _E8266_CIPSTART_ALREADY_CONNCTD)&&
+             (_pOnState !=  _E8266_CIPSTART_OK)&&(timeout>0));
+
+    if((_pOnState !=  _E8266_CIPSTART_ERROR)&&(timeout == 0)) {
+        _pOnState = _E8266_CIPSTART_TIMEOUT;
+    }
 
     return  _pOnState;
 }
@@ -482,7 +485,7 @@ esp8266StateMachines sendDataToConnectedSocket(void (*wrFptr)(const void *, size
         memset(_espDataBuff, 0, __ENTIRE_LENGTH_OF(_espDataBuff));
         rdFptr(&_espDataBuff,2048,NULL);
         wrFptr(_p_atCmdStr,strlen((const char*)_p_atCmdStr));
-        sleep(3);
+        sleep(5);
         buffPtr = &_espDataBuff[0];
         //mdmRply = strstr(buffPtr, "OK\r\n>");
         if(NULL !=strstr(buffPtr, "CLOSED")) {
@@ -538,12 +541,12 @@ esp8266StateMachines sendDataToConnectedSocket(void (*wrFptr)(const void *, size
                 _pOnState = _E8266_SEND_FAIL;
                 timeout --;
             }
-            else if(NULL !=strstr(buffPtr, "CLOSED")) {
-                _pOnState = _E8266_SEND_OK_RECVD;
+            else if(NULL !=strstr(buffPtr, "ERROR")) {
+                _pOnState = _E8266_SEND_MODULE_ERROR;
                 timeout = 0;
             }
             rdFptr(NULL,0,NULL);
-        } while ((_pOnState !=  _E8266_SEND_OK_RECVD)&&(timeout>0));
+        } while ((_pOnState !=  _E8266_SEND_OK_AND_CLOSED_NOT_RECVD)&&(_pOnState !=  _E8266_SEND_OK_AND_CLOSED_RECVD)&&(timeout>0));
     }
 
 

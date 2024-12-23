@@ -60,8 +60,6 @@ bool            transferOK;
 int32_t         status;
 uint16_t        t = 0;
 int_fast16_t Gstatus;
-uint8_t buff_Read[2048]={0};
-//volatile float   read_temp_arr[10];
 UART2_Handle uart;
 UART2_Params uartParams;
 bool replyDone = false;
@@ -265,7 +263,7 @@ void *testThread(void *arg0)
      }
     static esp8266StateMachines basicState = _E8266_PWR_UP;
     struct  _wifiParams* ptrToConnectionDetails;
-    struct  _E8266ConnectFailureCauses* ptrCountE8266FailureCauses = &countE8266FailureCauses;
+//    struct  _E8266ConnectFailureCauses* ptrCountE8266FailureCauses = &countE8266FailureCauses;
     volatile float read_temp = 0;
     volatile int TC_Count = 0, var = 0;
     char* tmp = NULL;
@@ -274,6 +272,10 @@ void *testThread(void *arg0)
         switch (basicState) {
 
             case _E8266_SEND_OK_AND_CLOSED_NOT_RECVD:
+                GPIO_write(STS_LED, 0);
+                GPIO_write(FLT_LED, 1);
+                basicState = _E8266_PWR_UP;
+                break;
             case _E8266_PWR_UP: //Check ESP01 module presence
                 basicState = checkPresenceEsp01Module(&esp01GpioInitFxn,
                                                       &esp01GpioCtrlFxn,
@@ -323,42 +325,47 @@ void *testThread(void *arg0)
             case _E8266_CIPSTART_DNS_ERROR:
 
                 GPIO_write(FLT_LED, 1);
-
+                basicState = _E8266_PWR_UP;
                 break;
+            case _E8266_CIPSTART_TIMEOUT:
             case _E8266_CIPSTART_ERROR:
                 // ALTHOUGH SAME CASE, DO NOT CLUB WITH case _E8266_SERVR_CONNECT_TIMEOUT
                 // retry 5 times to connect to server, if not then restart modem
                 GPIO_write(FLT_LED, 1);
-                if(++ptrCountE8266FailureCauses->_cause_E8266_CIPSTART_ERROR < 5) {
-                    //basicState = _E8266_SSID_LISTED;
-                }
-                else {
-                    //basicState = _E8266_PWR_UP;
-                }
-                break;
+                basicState = _E8266_PWR_UP;
+//                if(++ptrCountE8266FailureCauses->_cause_E8266_CIPSTART_ERROR < 5) {
+//                    //basicState = _E8266_SSID_LISTED;
+//                }
+//                else {
+//                    //basicState = _E8266_PWR_UP;
+//                }
+//                break;
 
             case _E8266_CIPSTART_CLOSE_ERROR:
 
-
+                GPIO_write(FLT_LED, 1);
+                basicState = _E8266_PWR_UP;
                 break;
             case _E8266_CIPSTART_ALREADY_CONNCTD:
 
+                GPIO_write(FLT_LED, 1);
 
                 break;
             case _E8266_SERVR_CONNECT_TIMEOUT:
 
                 // retry 5 times to connect to server, if not then restart modem
                 GPIO_write(FLT_LED, 1);
-                if(++ptrCountE8266FailureCauses->_cause_E8266_SERVR_CONNECT_TIMEOUT < 5) {
-                    basicState = _E8266_MODULE_PRESENT;
-                }
-                else {
-                    basicState = _E8266_PWR_UP;
-                }
-
+//                if(++ptrCountE8266FailureCauses->_cause_E8266_SERVR_CONNECT_TIMEOUT < 5) {
+//                    basicState = _E8266_MODULE_PRESENT;
+//                }
+//                else {
+//                    basicState = _E8266_PWR_UP;
+//                }
+                basicState = _E8266_PWR_UP;
 
 
                 break;
+
             case _E8266_CIFSR_COMPLETE:
             case _E8266_PING_SUCCESS:
             case _E8266_SEND_OK_RECVD: // For backward compatibility, _E8266_SEND_OK_AND_CLOSED_RECVD added to resolve
@@ -381,11 +388,15 @@ void *testThread(void *arg0)
                 break;
 
             case _E8266_SEND_FAIL:
+            case _E8266_SEND_MODULE_ERROR:
             case _E8266_CIPSEND_CONN_SRVR_CLOSED:
             case _E8266_CIPSEND_ARROW_FAIL:
+            case _E8266_CIPSEND_PRECONDITION_FAIL:
+            case _E8266_CIPSEND_ARROW_TIMEOUT:
 
                 GPIO_write(FLT_LED, 1);
-
+                GPIO_write(STS_LED, 0);
+                basicState = _E8266_PWR_UP;
                 break;
 
             case _E8266_CIPSTART_OK:
@@ -458,7 +469,7 @@ void *testThread(void *arg0)
                 // Try to connect to Server using TCP/UDP
                 basicState = sendDataToConnectedSocket(&writeToEspUart,
                                                        &readFromEspUart,
-                                                       &url[0],//"GET http://www.turjasuzworld.in/demo/api/setdevicetemp.php?did=TD1003-1&temp=000.00&day=19&mon=07&year=2020&hh=15&mm=52&ss=47&signal=45 HTTP/1.1\r\nHost: Turjasu\r\nConnection: keep-alive\r\n\r\n",
+                                                       &url[0],
                                                        _Esp_TCP,
                                                        basicState);
                 TC_Count++;
