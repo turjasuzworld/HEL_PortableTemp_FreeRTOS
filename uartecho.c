@@ -58,7 +58,7 @@ unsigned char masterTxBuffer[SPI_MSG_LENGTH];
 
 bool            transferOK;
 int32_t         status;
-uint16_t        t = 0;
+volatile uint16_t        t = 0;
 int_fast16_t Gstatus;
 UART2_Handle uart;
 UART2_Params uartParams;
@@ -69,7 +69,7 @@ SPI_Handle      masterSpi;
 SPI_Params      spiParams;
 SPI_Transaction transaction;
 
-char    url[256] = "GET http://www.turjasuzworld.in/demo/api/setdevicetemp.php?did=TD1003-1&temp=000.00&day=19&mon=07&year=2020&hh=15&mm=52&ss=47&signal=45 HTTP/1.1\r\nHost: Turjasu\r\nConnection: keep-alive\r\n\r\n";
+char    url[256] = "GET http://www.turjasuzworld.in/demo/api/setdevicetemp.php?did=TD1005-1&temp=000.00&day=19&mon=07&year=2020&hh=15&mm=52&ss=47&signal=45 HTTP/1.1\r\nHost: Turjasu\r\nConnection: keep-alive\r\n\r\n";
 char*   ptrToUrl = NULL;
 
 void    readCbKFn(UART2_Handle handle, void *buf, size_t count,
@@ -153,7 +153,7 @@ void readFromEspUart(void *buffer, size_t size, size_t* bytesRead)//UART2_Handle
 
 float   readTempFromMAX6675(uint_fast8_t channel)
 {
-    static float  temp ;
+    volatile static float  temp = 0.0 ;
     switch (channel) {
         case 1:
             GPIO_write(MAX6675_1, 0);
@@ -175,10 +175,19 @@ float   readTempFromMAX6675(uint_fast8_t channel)
     }
 
     usleep(1000);
+        t=0;
     transferOK = SPI_transfer(masterSpi, &transaction);
     if (transferOK) {
-        t>>=3;
-        temp = t*0.25;
+        if(t & 0x04)
+        {
+            temp = 0.0;
+        }
+        else
+        {
+            t>>=3;
+            temp = t*0.25;
+        }
+
     }
     else {
         // do some error handling here
@@ -264,7 +273,7 @@ void *testThread(void *arg0)
     static esp8266StateMachines basicState = _E8266_PWR_UP;
     struct  _wifiParams* ptrToConnectionDetails;
 //    struct  _E8266ConnectFailureCauses* ptrCountE8266FailureCauses = &countE8266FailureCauses;
-    volatile float read_temp = 0;
+    volatile static float read_temp = 0;
     volatile int TC_Count = 0, var = 0;
     char* tmp = NULL;
     while(1) {
@@ -443,11 +452,11 @@ void *testThread(void *arg0)
 //                    read_temp /= 30;
                     //Make a single read, if filtering is not reqd :
                     read_temp = readTempFromMAX6675(TC_Count + 1);
-                    ptrToUrl  = strstr(url, "did=TD1003-");
+                    ptrToUrl  = strstr(url, "did=TD1005-");
                     if(ptrToUrl)
                     {
-                        ptrToUrl += strlen("did=TD1003-");
-                        *ptrToUrl = 48 + (TC_Count + 1);
+                        ptrToUrl += strlen("did=TD1005-");
+                        *ptrToUrl = 48 + (5 - TC_Count);
                     }
                     ptrToUrl  = strstr(url, "temp=");
                     if(ptrToUrl)

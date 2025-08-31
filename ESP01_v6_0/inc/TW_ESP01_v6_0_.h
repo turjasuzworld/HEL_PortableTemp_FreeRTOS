@@ -21,7 +21,7 @@
 #define     __DFLT_IPv4_LEN_MAX__       16
 #define     __DFLT_MAC_LEN_MAX__        17
 #define     _ESP01_DATABUFF_MAX_        2048
-#define     _MAX_SSID_SCAN_SUPPORTED_   15
+#define     _MAX_SSID_SCAN_SUPPORTED_   20
 #define     _WIFI_CONN_DETAILS_NEEDED_      // disable this if you dont want to populate acquired STATION ip & mac as well as AP ip & mac.
 
 #define     __ENTIRE_LENGTH_OF(x)       sizeof(x)
